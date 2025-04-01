@@ -19,42 +19,46 @@ const sendButton = document.getElementById('send-button');
 async function generateResponse(prompt) {
 // Defines an asynchronous function `generateResponse` that takes the user's input (prompt) and generates a response from the API.
 
-    const response = await fetch(`${API_URL}?key=${API_KEY}`, {
-    // Sends a POST request to the Gemini API endpoint with the API key appended to the URL.
-        method: 'POST',
-        
+    try {
+        const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+        // Sends a POST request to the Gemini API endpoint with the API key appended to the URL.
+            method: 'POST',
+            
 
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            
 
-        body: JSON.stringify({
-        
-            contents: [
-                {
-                    parts: [
-                        {
-                            text: prompt
-                    
-                        }
-                    ]
-                }
-            ]
-        })
-    });
+            body: JSON.stringify({
+            
+                contents: [
+                    {
+                        parts: [
+                            {
+                                text: prompt
+                        
+                            }
+                        ]
+                    }
+                ]
+            })
+        });
 
-    if (!response.ok) {
+        if (!response.ok) {
+        
+            throw new Error(`API Error: ${response.statusText}`);
+        
+        }
+
+        const data = await response.json();
     
-        throw new Error('Failed to generate response');
-       
+
+        return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+        console.error('Error generating response:', error);
+        throw new Error('Failed to generate response. Please try again later.');
     }
-
-    const data = await response.json();
-   
-
-    return data.candidates[0].content.parts[0].text;
-    
 }
 
 function cleanMarkdown(text) {
@@ -110,6 +114,22 @@ function addMessage(message, isUser) {
     // Scrolls the chat to the bottom to ensure the latest message is visible.
 }
 
+function addLoadingIndicator() {
+    const loadingElement = document.createElement('div');
+    loadingElement.id = 'loading-indicator';
+    loadingElement.textContent = 'Typing...';
+    loadingElement.style.color = '#aaa';
+    chatMessages.appendChild(loadingElement);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function removeLoadingIndicator() {
+    const loadingElement = document.getElementById('loading-indicator');
+    if (loadingElement) {
+        chatMessages.removeChild(loadingElement);
+    }
+}
+
 async function handleUserInput() {
 // Defines an asynchronous function `handleUserInput` to process and handle the user’s input.
     const userMessage = userInput.value.trim();
@@ -127,14 +147,18 @@ async function handleUserInput() {
         userInput.disabled = true;
         // Disables the send button and the input field to prevent multiple messages being sent while the bot responds.
 
+        addLoadingIndicator();
+
         try {
             const botMessage = await generateResponse(userMessage);
+            removeLoadingIndicator();
             // Calls the `generateResponse` function to get the bot's reply.
 
             addMessage(cleanMarkdown(botMessage), false);
             // Adds the bot's cleaned response to the chat.
         } catch (error) {
             console.error('Error:', error);
+            removeLoadingIndicator();
             // Logs any error that occurs during the bot response.
 
             addMessage('Sorry, I encountered an error. Please try again.', false);
